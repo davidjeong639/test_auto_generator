@@ -289,7 +289,7 @@ function handle(event, d) {
     add(`<div class="tool"><b>${esc(TOOL_KO[d.name] || d.name)}</b> ${esc(d.hint)}</div>`);
   }
   else if (event === 'stderr' || event === 'fatal') add(`<div class="err">${esc(d.text || d.error)}</div>`);
-  else if (event === 'result') $('meta').textContent = `${(d.ms / 1000).toFixed(1)}s` + (d.turns ? ` · ${d.turns}턴` : '') + (d.cost != null ? ` · $${d.cost.toFixed(4)}` : '');
+  else if (event === 'result') $('meta').textContent = `${(d.ms / 1000).toFixed(1)}s` + (d.turns ? ` · ${d.turns}턴` : '') + (d.cost != null ? ` · API 환산 $${d.cost.toFixed(3)}` : '');
   else if (event === 'script') {
     if (d.script) {
       lastScript = d.script; $('out').textContent = d.script; $('path').textContent = `저장됨: ${d.file}`; $('copy').disabled = false;
