@@ -103,6 +103,10 @@
   .pill { font:700 13px/1 var(--mono); padding:7px 12px; border-radius:6px; color:#fff; }
   .pill.pass { background:var(--green); } .pill.fail { background:var(--red); } .pill.idle { background:var(--muted); }
   #run { max-height:260px; font-size:12px; min-height:60px; }
+  #media:empty { display:none; }
+  #media { margin-top:12px; display:grid; gap:8px; }
+  #media video, #media img { width:100%; border-radius:10px; border:1px solid var(--line); background:#000; }
+  #media .cap { font-size:12px; color:var(--muted); }
   #run .p { color:#6fcf97; } #run .f { color:#ff8a80; }
   a { color:var(--blue); }
 
@@ -148,7 +152,7 @@
       <div class="opts" style="margin-top:12px">
         <label class="check"><input type="checkbox" id="pom"><span>POM 구조로 작성<small>강의 09 · Page Object Model</small></span></label>
         <label class="check"><input type="checkbox" id="verify" checked><span>실행해서 검증<small>실패하면 AI가 고친 뒤 재실행</small></span></label>
-        <label class="check"><input type="checkbox" id="headed"><span>브라우저 띄워서 실행<small>시연용 · 검증과 ▶ 실행 모두 적용</small></span></label>
+        <label class="check"><input type="checkbox" id="headed" checked><span>브라우저 띄워서 실행<small>시연용 · 크롬 창에서 천천히 동작</small></span></label>
       </div>
       <div class="warn" id="envWarn" hidden></div>
 
@@ -176,6 +180,7 @@
       <div class="verdict"><span class="pill idle" id="pill">대기</span><span class="meta" id="counts"></span></div>
       <pre id="run">pytest 출력이 여기에 표시됩니다</pre>
       <div class="meta" id="report" style="margin-top:6px"></div>
+      <div id="media"></div>
     </section>
   </div>
 
@@ -303,6 +308,7 @@ async function loadScript(meta) {
 $('ver').onchange = () => showCaseScripts(currentCase, $('ver').value);
 
 function resetRunPanel(msg) {
+  $('media').innerHTML = '';
   $('run').textContent = msg; $('pill').className = 'pill idle'; $('pill').textContent = '대기';
   $('counts').textContent = ''; $('report').innerHTML = '';
 }
@@ -310,6 +316,9 @@ function showRunResult(d) {
   $('pill').className = `pill ${d.ok ? 'pass' : 'fail'}`; $('pill').textContent = d.ok ? 'PASS' : 'FAIL';
   $('counts').textContent = `passed ${d.passed} · failed ${d.failed}` + (d.error ? ` · error ${d.error}` : '');
   $('report').innerHTML = d.report ? `<a href="${esc(d.report)}" target="_blank">📄 HTML 리포트 열기 (pytest-html)</a>` : '';
+  const shots = (d.screenshots || []).map((src) => `<div class="cap">📸 실패한 순간의 화면</div><img src="${esc(src)}" alt="실패 스크린샷">`);
+  const videos = (d.videos || []).map((src) => `<div class="cap">🎬 실행 영상 — 브라우저에서 실제로 일어난 일</div><video src="${esc(src)}?t=${Date.now()}" controls autoplay muted playsinline></video>`);
+  $('media').innerHTML = [...shots, ...videos].join('');
 }
 
 let env = { pytest: true };

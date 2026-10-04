@@ -51,6 +51,7 @@ MIME = {
     ".css": "text/css; charset=utf-8",
     ".py": "text/plain; charset=utf-8",
     ".png": "image/png",
+    ".webm": "video/webm",
 }
 
 
@@ -425,9 +426,12 @@ class Handler(BaseHTTPRequestHandler):
     def run_pytest(self, run_id, out_file, headed):
         """AI 의 요약을 믿지 않고, 서버가 직접 pytest 를 돌려 결과를 확인한다."""
         report = f"{run_id}.report.html"
-        cmd = [PYTHON_BIN, "-m", "pytest", out_file, "-v", "--tb=short", "--color=no", "-p", "no:cacheprovider"]
-        if headed:  # 시연용: 브라우저 창을 띄우고 천천히 실행
-            cmd += ["--headed", "--slowmo", "500"]
+        artifacts = f"{run_id}.artifacts"  # 실행 영상 · 실패 스크린샷 (화면에서 재생)
+        shutil.rmtree(GENERATED_DIR / artifacts, ignore_errors=True)
+        cmd = [PYTHON_BIN, "-m", "pytest", out_file, "-v", "--tb=short", "--color=no", "-p", "no:cacheprovider",
+               "--video", "on", "--screenshot", "only-on-failure", "--output", artifacts]
+        if headed:  # 시연용: 브라우저 창을 띄우고 사람이 볼 수 있는 속도로 실행
+            cmd += ["--headed", "--slowmo", "700"]
         if ENV["pytestHtml"]:
             cmd += [f"--html={report}", "--self-contained-html"]
         self.sse("run-start", {"cmd": "python " + " ".join(cmd[1:])})
@@ -454,6 +458,8 @@ class Handler(BaseHTTPRequestHandler):
         result = {
             "code": proc.returncode, **counts, "ok": proc.returncode == 0 and counts["passed"] > 0,
             "report": f"/generated/{report}" if has_report else None, "at": now(),
+            "videos": [f"/generated/{f.relative_to(GENERATED_DIR).as_posix()}" for f in sorted((GENERATED_DIR / artifacts).rglob("*.webm"))],
+            "screenshots": [f"/generated/{f.relative_to(GENERATED_DIR).as_posix()}" for f in sorted((GENERATED_DIR / artifacts).rglob("*.png"))],
         }
         self.sse("run-done", result)
         return result
