@@ -4,128 +4,350 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Test Auto Generator</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap">
 <style>
-  :root { --bg:#fff; --fg:#1a1a1a; --muted:#666; --card:#f6f7f9; --line:#dcdfe4; --accent:#d97757; --code:#111; --codefg:#e6e6e6; }
-  @media (prefers-color-scheme: dark) {
-    :root { --bg:#16171a; --fg:#ececec; --muted:#9a9a9a; --card:#202226; --line:#33363c; --code:#0c0d0f; }
+  /* Palette follows the "QA를 위한 테스트 자동화 기초" lecture deck. */
+  :root {
+    --bg:#faf9f5; --fg:#1a1c22; --muted:#6b6e78; --card:#fff; --line:#e4e3dd; --soft:#eff1ec;
+    --green:#1f9d55; --green-d:#1c854d; --red:#c0392b; --blue:#2d63b5; --amber:#b7791f;
+    --code:#1a1c22; --codefg:#e4e3dd;
+    --mono:'JetBrains Mono', ui-monospace, monospace;
   }
-  * { box-sizing: border-box; }
-  body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.5 system-ui, sans-serif; }
-  main { max-width:1100px; margin:0 auto; padding:24px 16px 48px; }
-  h1 { margin:0 0 4px; font-size:22px; }
-  .sub { color:var(--muted); margin:0 0 20px; }
-  .grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
-  @media (max-width:800px) { .grid { grid-template-columns:1fr; } }
-  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; }
-  label { display:block; font-weight:600; margin:12px 0 4px; }
-  label:first-child { margin-top:0; }
-  input, select, textarea { width:100%; padding:8px 10px; border:1px solid var(--line); border-radius:6px; background:var(--bg); color:var(--fg); font:inherit; }
-  textarea { min-height:170px; resize:vertical; font-family:ui-monospace, monospace; font-size:13px; }
-  .row { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
-  button { border:1px solid var(--line); background:var(--bg); color:var(--fg); border-radius:6px; padding:7px 12px; cursor:pointer; font:inherit; }
-  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600; padding:9px 18px; }
-  button:disabled { opacity:.5; cursor:wait; }
-  #log { max-height:220px; overflow:auto; font-size:13px; }
-  .tool { color:var(--muted); font-family:ui-monospace, monospace; }
-  .tool b { color:var(--accent); }
-  .err { color:#d33; }
-  pre { margin:0; background:var(--code); color:var(--codefg); padding:14px; border-radius:8px; overflow:auto; font-size:12.5px; min-height:120px; }
-  .head { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#14161c; --fg:#ececec; --muted:#9a9ca4; --card:#1a1c22; --line:#2c2f37; --soft:#16241c; --code:#0e0f13; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.55 'Pretendard', system-ui, sans-serif; }
+  main { max-width:1180px; margin:0 auto; padding:28px 16px 64px; }
+  code, pre, textarea { font-family:var(--mono); }
+
+  .eyebrow { font:600 12px/1 var(--mono); letter-spacing:.12em; color:var(--green); text-transform:uppercase; }
+  h1 { margin:8px 0 6px; font-size:28px; letter-spacing:-.02em; }
+  .sub { color:var(--muted); margin:0; max-width:760px; }
+  .sub b { color:var(--fg); }
+
+  /* Pipeline stepper */
+  .pipe { display:grid; grid-template-columns:repeat(5, 1fr); gap:8px; margin:24px 0 20px; }
+  .stage { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px; position:relative; transition:border-color .2s, background .2s; }
+  .stage .n { font:600 11px/1 var(--mono); color:var(--muted); }
+  .stage .t { font-weight:700; margin:6px 0 2px; }
+  .stage .who { font-size:12px; color:var(--muted); }
+  .stage .lec { display:inline-block; margin-top:8px; font:600 11px/1 var(--mono); color:var(--green-d); background:var(--soft); border-radius:4px; padding:4px 6px; }
+  .stage.active { border-color:var(--green); box-shadow:0 0 0 3px color-mix(in srgb, var(--green) 18%, transparent); }
+  .stage.active .n::after { content:' · 진행 중'; color:var(--green); }
+  .stage[data-stage=report].active .n::after { content:' · 여러분 차례'; }
+  .stage.done { border-color:var(--green); }
+  .stage.done .n::after { content:' ✓'; color:var(--green); }
+  .stage.fail { border-color:var(--red); }
+  .stage.fail .n::after { content:' ✗'; color:var(--red); }
+  .stage.skip { opacity:.5; }
+  @media (max-width:820px) { .pipe { grid-template-columns:1fr 1fr; } }
+
+  .grid { display:grid; grid-template-columns:minmax(0,5fr) minmax(0,6fr); gap:16px; }
+  @media (max-width:900px) { .grid { grid-template-columns:1fr; } }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:18px; min-width:0; }
+  .head { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:10px; }
   .head h2 { margin:0; font-size:16px; }
   .meta { color:var(--muted); font-size:12px; }
+
+  label { display:block; font-weight:600; font-size:13px; margin:14px 0 5px; }
+  label:first-child { margin-top:0; }
+  input[type=text], select, textarea { width:100%; padding:9px 11px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--fg); font:inherit; }
+  textarea { min-height:190px; resize:vertical; font-size:13px; line-height:1.6; }
+  .opts { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .check { display:flex; gap:8px; align-items:flex-start; font-weight:400; font-size:13px; margin:0; padding:10px; border:1px solid var(--line); border-radius:8px; cursor:pointer; }
+  .check input { margin-top:3px; accent-color:var(--green); }
+  .check small { display:block; color:var(--muted); }
+  .row { display:flex; gap:8px; flex-wrap:wrap; margin-top:16px; }
+  button { border:1px solid var(--line); background:var(--bg); color:var(--fg); border-radius:8px; padding:8px 14px; cursor:pointer; font:inherit; font-size:14px; }
+  button.primary { background:var(--green); border-color:var(--green); color:#fff; font-weight:700; padding:10px 20px; }
+  button.primary:hover { background:var(--green-d); }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  .warn { font-size:12px; color:var(--amber); margin-top:8px; }
+
+  #log { height:300px; overflow:auto; font-size:13px; display:flex; flex-direction:column; gap:4px; }
+  #log .tool { font:12px/1.5 var(--mono); color:var(--muted); word-break:break-all; }
+  #log .tool b { color:var(--blue); }
+  #log .say { white-space:pre-wrap; }
+  .err { color:var(--red); white-space:pre-wrap; }
+
+  pre { margin:0; background:var(--code); color:var(--codefg); padding:16px; border-radius:10px; overflow:auto; font-size:12.5px; line-height:1.6; min-height:140px; max-height:560px; }
+  .badges { display:flex; flex-wrap:wrap; gap:6px; margin-top:12px; }
+  .badge { font-size:12px; border:1px solid var(--line); border-radius:999px; padding:4px 10px; background:var(--soft); }
+  .badge b { font-family:var(--mono); color:var(--green-d); margin-right:4px; }
+
+  .verdict { display:flex; align-items:center; gap:12px; margin-bottom:10px; }
+  .pill { font:700 13px/1 var(--mono); padding:7px 12px; border-radius:6px; color:#fff; }
+  .pill.pass { background:var(--green); } .pill.fail { background:var(--red); } .pill.idle { background:var(--muted); }
+  #run { max-height:260px; font-size:12px; min-height:60px; }
+  #run .p { color:#6fcf97; } #run .f { color:#ff8a80; }
+  a { color:var(--blue); }
+
+  .compare { display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-top:16px; }
+  @media (max-width:900px) { .compare { grid-template-columns:1fr; } }
+  .compare h3 { margin:0 0 8px; font-size:14px; }
+  .compare ul { margin:0; padding-left:18px; font-size:13px; color:var(--muted); }
+  .compare li { margin:3px 0; }
+  .compare li b { color:var(--fg); font-weight:600; }
+  .human { border-color:var(--green); background:var(--soft); }
 </style>
 </head>
 <body>
 <main>
-  <h1>Test Auto Generator</h1>
-  <p class="sub">테스트 케이스를 적으면 Claude Code(<code>claude -p</code>)가 사이트를 직접 확인하고 자동화 스크립트를 만들어 줍니다.</p>
+  <div class="eyebrow">강의 그 다음 · 실무 심화 데모</div>
+  <h1>테스트 케이스만 쓰면, 자동화 스크립트는 AI가</h1>
+  <p class="sub">강의에서는 <code>page.fill()</code> · <code>assert</code>를 한 줄씩 직접 쳤습니다. 현업에서는 같은 원리 위에서 <b>사람은 "무엇을 검증할지"를 설계</b>하고, Claude Code가 사이트를 분석해 스크립트를 쓰고 <b>직접 돌려 검증</b>까지 합니다.</p>
+
+  <div class="pipe" id="pipe">
+    <div class="stage" data-stage="case"><div class="n">STEP 1</div><div class="t">테스트 케이스 작성</div><div class="who">👤 사람 (QA)</div><span class="lec">강의 06 · 무엇을 assert?</span></div>
+    <div class="stage" data-stage="inspect"><div class="n">STEP 2</div><div class="t">사이트 분석</div><div class="who">🤖 AI · F12 대신</div><span class="lec">강의 02 · HTML &amp; DOM</span></div>
+    <div class="stage" data-stage="write"><div class="n">STEP 3</div><div class="t">스크립트 작성</div><div class="who">🤖 AI · Locator 선택</div><span class="lec">강의 08 · Locator</span></div>
+    <div class="stage" data-stage="run"><div class="n">STEP 4</div><div class="t">실행 · 자가 수정</div><div class="who">🤖 AI + pytest</div><span class="lec">강의 06 · pytest</span></div>
+    <div class="stage" data-stage="report"><div class="n">STEP 5</div><div class="t">결과 리뷰</div><div class="who">👤 사람 (QA)</div><span class="lec">강의 09 · 실무 리뷰</span></div>
+  </div>
 
   <div class="grid">
     <section class="card">
+      <div class="head"><h2>① 테스트 케이스</h2><span class="meta">사람이 하는 일은 여기까지</span></div>
       <label for="url">대상 사이트</label>
-      <input id="url" value="https://www.saucedemo.com">
+      <input type="text" id="url" value="https://www.saucedemo.com">
 
-      <label for="sample">샘플 케이스</label>
+      <label for="sample">샘플 (강의 실습 · 과제 시나리오)</label>
       <select id="sample"></select>
 
-      <label for="tc">테스트 케이스</label>
-      <textarea id="tc"></textarea>
+      <label for="tc">테스트 케이스 — 단계와 기대 결과</label>
+      <textarea id="tc" spellcheck="false"></textarea>
 
-      <label for="fw">프레임워크</label>
-      <select id="fw">
-        <option value="playwright-js">Playwright (JavaScript)</option>
-        <option value="playwright-python">Playwright (Python)</option>
-      </select>
+      <label for="model">모델 <span class="meta">(비우면 내 Claude Code 기본값)</span></label>
+      <input type="text" id="model" placeholder="예: sonnet">
+      <div class="opts" style="margin-top:12px">
+        <label class="check"><input type="checkbox" id="pom"><span>POM 구조로 작성<small>강의 09 · Page Object Model</small></span></label>
+        <label class="check"><input type="checkbox" id="verify" checked><span>실행해서 검증<small>실패하면 AI가 고친 뒤 재실행</small></span></label>
+      </div>
+      <div class="warn" id="envWarn" hidden></div>
 
-      <label for="model">모델 (비우면 내 Claude Code 기본값)</label>
-      <input id="model" placeholder="예: sonnet">
-
-      <div class="row"><button class="primary" id="go">스크립트 생성</button><button id="stop" disabled>중지</button></div>
+      <div class="row"><button class="primary" id="go">자동화 스크립트 만들기</button><button id="stop" disabled>중지</button></div>
     </section>
 
     <section class="card">
-      <div class="head"><h2>진행 상황</h2><span class="meta" id="meta"></span></div>
-      <div id="log"><span class="meta">대기 중</span></div>
+      <div class="head"><h2>② AI 작업 로그</h2><span class="meta" id="meta"></span></div>
+      <div id="log"><span class="meta">대기 중 — 왼쪽에서 케이스를 고르고 실행하세요. Claude가 어떤 페이지를 열고, 어떤 파일을 쓰고, 어떤 명령을 실행하는지 실시간으로 보입니다.</span></div>
     </section>
   </div>
 
-  <section class="card" style="margin-top:16px">
-    <div class="head"><h2>생성된 스크립트</h2><button id="copy" disabled>복사</button></div>
-    <pre id="out">// 여기에 결과가 표시됩니다</pre>
-    <div class="meta" id="path" style="margin-top:6px"></div>
+  <div class="grid" style="margin-top:16px">
+    <section class="card">
+      <div class="head"><h2>③ 생성된 스크립트</h2><button id="copy" disabled>복사</button></div>
+      <pre id="out"># 여기에 결과가 표시됩니다</pre>
+      <div class="meta" id="path" style="margin-top:6px"></div>
+      <div class="badges" id="badges"></div>
+    </section>
+
+    <section class="card">
+      <div class="head"><h2>④ 서버 실행 결과</h2><span class="meta">AI의 말이 아니라, 실제 실행으로 확인</span></div>
+      <div class="verdict"><span class="pill idle" id="pill">대기</span><span class="meta" id="counts"></span></div>
+      <pre id="run">pytest 출력이 여기에 표시됩니다</pre>
+      <div class="meta" id="report" style="margin-top:6px"></div>
+    </section>
+  </div>
+
+  <div class="compare">
+    <section class="card">
+      <h3>✍️ 강의 · 손으로 직접</h3>
+      <ul>
+        <li><b>F12</b>로 id · class 단서 찾기</li>
+        <li><code>page.fill("#user-name", …)</code> 한 줄씩</li>
+        <li><code>print</code> → <code>assert</code>로 판정</li>
+        <li>기초를 몸으로 익히는 단계</li>
+      </ul>
+    </section>
+    <section class="card">
+      <h3>🎥 Codegen · 녹화</h3>
+      <ul>
+        <li>빠르지만 <b>Locator가 불안정</b></li>
+        <li><b>assert가 0개</b> — 검증은 직접</li>
+        <li>이름·구조가 지저분해 리팩토링 필요</li>
+        <li>"초안 생성기" (강의 07)</li>
+      </ul>
+    </section>
+    <section class="card">
+      <h3>🤖 AI 에이전트 · 이 데모</h3>
+      <ul>
+        <li>실제 DOM을 보고 <b>test-id &gt; role &gt; text</b> 순으로 선택</li>
+        <li>기대 결과마다 <b>assert 자동 작성</b></li>
+        <li><b>직접 실행</b>하고 깨지면 스스로 수정</li>
+        <li>그래도 최종 판단은 사람이 리뷰</li>
+      </ul>
+    </section>
+  </div>
+  <section class="card human" style="margin-top:12px">
+    <b>🧰 도구는 거들 뿐.</b> <span class="meta">AI가 코드를 써 줘도 <b>"무엇을 검증할지"</b>는 사람이 설계합니다. 위 결과를 읽고 맞는지 판단하려면 강의에서 배운 요소 · Locator · assert 기초가 그대로 필요합니다.</span>
   </section>
 </main>
 
 <script>
 const SAMPLES = {
-  'TC-01 정상 로그인': `TC-01 정상 로그인
+  'TC-01 로그인 성공 (강의 05)': `TC-01 로그인 성공
 1. 로그인 페이지에 접속한다
-2. 사용자명 standard_user, 비밀번호 secret_sauce 를 입력하고 Login 을 누른다
-기대 결과: /inventory.html 로 이동하고 상품 목록이 6개 보인다`,
-  'TC-02 잠긴 계정 로그인': `TC-02 잠긴 계정 로그인
+2. 아이디 standard_user, 비밀번호 secret_sauce 를 입력한다
+3. Login 버튼을 누른다
+기대 결과:
+- URL 에 inventory 가 포함된다
+- 상품 목록이 6개 보인다`,
+  'TC-02 잘못된 비밀번호 (강의 06)': `TC-02 잘못된 비밀번호로 로그인 실패
 1. 로그인 페이지에 접속한다
-2. 사용자명 locked_out_user, 비밀번호 secret_sauce 로 로그인한다
-기대 결과: 로그인되지 않고 "locked out" 이 포함된 에러 메시지가 표시된다`,
-  'TC-03 장바구니 담기': `TC-03 장바구니 담기
-1. standard_user 로 로그인한다
-2. "Sauce Labs Backpack" 을 장바구니에 담는다
+2. 아이디 standard_user, 비밀번호 wrong_pw 를 입력하고 Login 을 누른다
+기대 결과:
+- 로그인되지 않고 로그인 페이지에 머문다
+- "Username and password do not match" 가 포함된 에러 메시지가 보인다`,
+  'TC-03 잠긴 계정': `TC-03 잠긴 계정 로그인 차단
+1. 로그인 페이지에 접속한다
+2. 아이디 locked_out_user, 비밀번호 secret_sauce 로 로그인한다
+기대 결과:
+- "locked out" 이 포함된 에러 메시지가 보인다`,
+  'TC-04 상품 2개 담기 (과제 ①)': `TC-04 상품 2개 장바구니 담기
+1. standard_user / secret_sauce 로 로그인한다
+2. "Sauce Labs Backpack" 과 "Sauce Labs Bike Light" 를 장바구니에 담는다
 3. 장바구니 아이콘을 눌러 장바구니로 이동한다
-기대 결과: 장바구니 배지가 1 이고, 장바구니 목록에 "Sauce Labs Backpack" 이 있다`,
-  'TC-04 주문 완료': `TC-04 주문 완료
-1. standard_user 로 로그인하고 상품 1개를 담는다
-2. 장바구니 > Checkout 에서 이름/성/우편번호를 입력하고 Continue, Finish 를 누른다
-기대 결과: "Thank you for your order" 문구가 표시된다`,
+기대 결과:
+- 장바구니 배지 숫자가 2 이다
+- 장바구니에 두 상품 이름이 모두 보인다`,
+  'TC-05 로그아웃 (과제 ①)': `TC-05 로그아웃
+1. standard_user / secret_sauce 로 로그인한다
+2. 왼쪽 위 메뉴(☰)를 열고 Logout 을 누른다
+기대 결과:
+- 로그인 페이지로 돌아온다 (Login 버튼이 보인다)`,
+  'TC-06 주문 완료 (E2E)': `TC-06 주문 완료까지 E2E
+1. standard_user / secret_sauce 로 로그인한다
+2. "Sauce Labs Backpack" 을 담고 장바구니로 이동한다
+3. Checkout → 이름 Jinsu, 성 Jeong, 우편번호 12345 입력 → Continue
+4. 결제 요약 화면에서 Finish 를 누른다
+기대 결과:
+- 요약 화면의 상품명이 "Sauce Labs Backpack" 이다
+- "Thank you for your order!" 문구가 보인다
+- 장바구니 배지가 사라진다`,
+  '✏️ 직접 작성': ``,
 };
+
+// Lecture concepts we can spot in the generated code -> which lecture section they come from.
+const CONCEPTS = [
+  [/\bassert\b|expect\(/, '06', 'assert / expect 검증'],
+  [/def test_/, '06', '테스트 함수'],
+  [/get_by_test_id|data-test/, '08', 'test-id Locator 🥇'],
+  [/get_by_role/, '08', 'role Locator 🥈'],
+  [/get_by_text|get_by_placeholder/, '08', 'text / placeholder Locator'],
+  [/\.filter\(/, '08', 'filter로 콕 집기'],
+  [/\.nth\(|\.first\b/, '08', 'nth / first'],
+  [/["']#[\w-]+|["']\.[a-zA-Z_][\w-]*/, '05', '#id · .class 단서'],
+  [/xpath=|["']\/\//, '08', 'XPath (심화)'],
+  [/class \w+Page\b/, '09', 'Page Object Model'],
+  [/to_have_count|\.count\(\)/, '05', '개수 확인'],
+];
+
 const $ = (id) => document.getElementById(id);
 const sample = $('sample');
 for (const k of Object.keys(SAMPLES)) sample.add(new Option(k, k));
-sample.onchange = () => { $('tc').value = SAMPLES[sample.value]; };
+sample.onchange = () => { $('tc').value = SAMPLES[sample.value]; if (!SAMPLES[sample.value]) $('tc').focus(); };
 sample.onchange();
 
+let env = { pytest: true };
+fetch('/api/env').then((r) => r.json()).then((e) => { env = e; updateEnvWarn(); }).catch(() => {});
+function updateEnvWarn() {
+  const w = $('envWarn');
+  if (!$('verify').checked) { w.hidden = true; return; }
+  w.textContent = 'pytest-playwright가 설치되지 않아 ④ 서버 실행은 건너뜁니다 — pip install -r requirements.txt';
+  w.hidden = env.pytest;
+}
+$('verify').onchange = updateEnvWarn;
+
+// ---- pipeline stepper ----
+const stages = [...document.querySelectorAll('.stage')];
+const stageEl = (s) => stages.find((el) => el.dataset.stage === s);
+function setStage(name, state = 'active') {
+  const idx = stages.indexOf(stageEl(name));
+  stages.forEach((el, i) => {
+    if (i < idx && !el.classList.contains('skip') && !el.classList.contains('fail')) { el.classList.remove('active'); el.classList.add('done'); }
+  });
+  const el = stageEl(name);
+  el.classList.remove('active', 'done', 'fail', 'skip');
+  el.classList.add(state);
+}
+const resetStages = () => stages.forEach((el) => el.classList.remove('active', 'done', 'fail', 'skip'));
+let wroteScript = false, aiRan = false;
+function stageForTool(name, hint) {
+  if (/pytest/.test(hint)) { aiRan = true; return 'run'; }
+  if (name === 'Write' || name === 'Edit') return wroteScript ? 'run' : (wroteScript = true, 'write');
+  return wroteScript ? null : 'inspect';
+}
+
+// ---- log ----
 let ctrl, lastScript = '';
 const log = $('log');
 const add = (html) => { log.insertAdjacentHTML('beforeend', html); log.scrollTop = log.scrollHeight; };
-const esc = (s) => s.replace(/[&<>]/g, (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[c]));
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;' }[c]));
+const TOOL_KO = { WebFetch: '페이지 열기', Read: '파일 읽기', Write: '파일 쓰기', Edit: '파일 수정', Bash: '명령 실행' };
+
+function showBadges(script) {
+  $('badges').innerHTML = '<span class="meta" style="width:100%">강의에서 배운 개념이 이렇게 쓰였어요</span>' +
+    CONCEPTS.filter(([re]) => re.test(script)).map(([, sec, label]) => `<span class="badge"><b>${sec}</b>${esc(label)}</span>`).join('');
+}
 
 function handle(event, d) {
-  if (event === 'text') add(`<div>${esc(d.text)}</div>`);
-  else if (event === 'tool') add(`<div class="tool"><b>${esc(d.name)}</b> ${esc(d.hint)}</div>`);
+  if (event === 'text') add(`<div class="say">${esc(d.text)}</div>`);
+  else if (event === 'tool') {
+    const s = stageForTool(d.name, d.hint);
+    if (s) setStage(s);
+    add(`<div class="tool"><b>${esc(TOOL_KO[d.name] || d.name)}</b> ${esc(d.hint)}</div>`);
+  }
   else if (event === 'stderr' || event === 'fatal') add(`<div class="err">${esc(d.text || d.error)}</div>`);
-  else if (event === 'result') $('meta').textContent = `${(d.ms/1000).toFixed(1)}s` + (d.cost != null ? ` · $${d.cost.toFixed(4)}` : '');
+  else if (event === 'result') $('meta').textContent = `${(d.ms / 1000).toFixed(1)}s` + (d.turns ? ` · ${d.turns}턴` : '') + (d.cost != null ? ` · $${d.cost.toFixed(4)}` : '');
+  else if (event === 'script') {
+    if (d.script) {
+      lastScript = d.script; $('out').textContent = d.script; $('path').textContent = `저장됨: ${d.file}`; $('copy').disabled = false;
+      showBadges(d.script);
+    } else {
+      add('<div class="err">스크립트 파일이 생성되지 않았습니다.</div>');
+      setStage('write', 'fail');
+    }
+  }
+  else if (event === 'run-start') { setStage('run'); $('run').textContent = `$ ${d.cmd}\n`; $('pill').className = 'pill idle'; $('pill').textContent = '실행 중'; }
+  else if (event === 'run-line') {
+    const cls = /PASSED|passed/.test(d.text) ? 'p' : /FAILED|failed|Error/.test(d.text) ? 'f' : '';
+    $('run').insertAdjacentHTML('beforeend', `<span class="${cls}">${esc(d.text)}</span>\n`);
+    $('run').scrollTop = $('run').scrollHeight;
+  }
+  else if (event === 'run-done') {
+    const ok = d.code === 0 && d.passed > 0;
+    $('pill').className = `pill ${ok ? 'pass' : 'fail'}`; $('pill').textContent = ok ? 'PASS' : 'FAIL';
+    $('counts').textContent = `passed ${d.passed} · failed ${d.failed}` + (d.error ? ` · error ${d.error}` : '');
+    $('report').innerHTML = d.report ? `<a href="${esc(d.report)}" target="_blank">📄 HTML 리포트 열기 (pytest-html)</a>` : '';
+    setStage('run', ok ? 'done' : 'fail');
+  }
   else if (event === 'done') {
-    if (d.script) { lastScript = d.script; $('out').textContent = d.script; $('path').textContent = `저장됨: ${d.file}`; $('copy').disabled = false; }
-    else add('<div class="err">스크립트 파일이 생성되지 않았습니다.</div>');
+    if (!d.verified) {
+      if (!aiRan) stageEl('run').classList.add('skip');
+      $('pill').textContent = '건너뜀'; $('counts').textContent = aiRan ? 'AI 자체 실행 결과는 ② 로그 참고' : '서버 실행 검증 없이 완료';
+    }
+    if (lastScript) setStage('report');
   }
 }
 
 $('go').onclick = async () => {
-  ctrl = new AbortController();
-  log.innerHTML = ''; $('meta').textContent = ''; $('out').textContent = '생성 중…'; $('path').textContent = ''; $('copy').disabled = true;
+  if (!$('tc').value.trim()) { $('tc').focus(); return; }
+  ctrl = new AbortController(); wroteScript = false; aiRan = false; lastScript = '';
+  log.innerHTML = ''; $('meta').textContent = ''; $('out').textContent = '생성 중…'; $('path').textContent = ''; $('badges').innerHTML = '';
+  $('copy').disabled = true; $('run').textContent = '스크립트가 완성되면 서버가 직접 실행합니다'; $('pill').className = 'pill idle'; $('pill').textContent = '대기';
+  $('counts').textContent = ''; $('report').innerHTML = '';
+  resetStages(); setStage('case', 'done'); setStage('inspect');
   $('go').disabled = true; $('stop').disabled = false;
   try {
     const res = await fetch('/api/generate', {
       method: 'POST', signal: ctrl.signal, headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url: $('url').value, testCase: $('tc').value, framework: $('fw').value, model: $('model').value }),
+      body: JSON.stringify({
+        url: $('url').value, testCase: $('tc').value, model: $('model').value,
+        pom: $('pom').checked, verify: $('verify').checked,
+      }),
     });
     if (!res.ok) throw new Error(await res.text());
     const reader = res.body.getReader(), dec = new TextDecoder();
@@ -141,9 +363,12 @@ $('go').onclick = async () => {
         if (ev && data) handle(ev, JSON.parse(data));
       }
     }
-  } catch (e) { if (e.name !== 'AbortError') add(`<div class="err">${esc(e.message)}</div>`); else add('<div class="meta">중지됨</div>'); }
+  } catch (e) {
+    if (e.name !== 'AbortError') add(`<div class="err">${esc(e.message)}</div>`); else add('<div class="meta">중지됨</div>');
+    document.querySelector('.stage.active')?.classList.replace('active', 'fail');
+  }
   $('go').disabled = false; $('stop').disabled = true;
-  if ($('out').textContent === '생성 중…') $('out').textContent = '// 결과 없음';
+  if ($('out').textContent === '생성 중…') $('out').textContent = '# 결과 없음';
 };
 $('stop').onclick = () => ctrl?.abort();
 $('copy').onclick = () => navigator.clipboard.writeText(lastScript);

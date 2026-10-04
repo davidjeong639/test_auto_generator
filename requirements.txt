@@ -1,0 +1,4 @@
+# Needed only to run the generated Python tests (server-side "실행 검증").
+pytest
+pytest-playwright
+pytest-html
