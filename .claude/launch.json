@@ -4,7 +4,7 @@
     {
       "name": "test-auto-generator",
       "runtimeExecutable": ".venv/Scripts/python.exe",
-      "runtimeArgs": ["app.py"],
+      "runtimeArgs": ["app.py", "--wsl"],
       "port": 3000
     }
   ]

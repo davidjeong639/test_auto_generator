@@ -27,6 +27,8 @@ PORT = int(os.environ.get("PORT", 3000))
 CLAUDE_BIN = os.environ.get("CLAUDE_BIN", "claude")
 PYTHON_BIN = os.environ.get("PYTHON_BIN", sys.executable)  # 기본: 이 서버를 실행한 python
 ALLOWED_TOOLS = os.environ.get("CLAUDE_ALLOWED_TOOLS", "WebFetch Read Write Edit Bash").split()
+# WSL(리눅스)에 로그인된 claude 를 쓰려면:  python app.py --wsl
+USE_WSL = "--wsl" in sys.argv or os.environ.get("CLAUDE_WSL") == "1"
 
 ROOT = Path(__file__).resolve().parent
 GENERATED_DIR = ROOT / "generated"
@@ -49,6 +51,9 @@ MIME = {
     ".py": "text/plain; charset=utf-8",
     ".png": "image/png",
 }
+
+
+ANSI_COLOR = re.compile(r"\x1b\[[0-9;]*m")  # 터미널 색상 코드 (FORCE_COLOR 환경 등에서 섞여 들어옴)
 
 
 def has_module(code):
@@ -74,6 +79,18 @@ def load_test_cases():
     except (OSError, json.JSONDecodeError) as e:
         print(f"  test_cases.json 을 읽지 못했습니다: {e}")
         return []
+
+
+def wsl_path(windows_path):
+    """E:\a\b.exe -> /mnt/e/a/b.exe (WSL 안에서 Windows 파일을 부를 때)"""
+    p = Path(windows_path).resolve()
+    return f"/mnt/{p.drive[0].lower()}{p.as_posix()[2:]}"
+
+
+def pytest_command(out_file):
+    """Claude 가 직접 돌릴 pytest 명령. WSL 모드에서도 서버와 같은 Windows python(venv)으로 실행한다."""
+    python = wsl_path(PYTHON_BIN) if USE_WSL else "python"
+    return f"{python} -m pytest {out_file} -v"
 
 
 def build_prompt(url, test_case, out_file, pom, verify):
@@ -112,7 +129,7 @@ def build_prompt(url, test_case, out_file, pom, verify):
         step += 1
     if verify:
         lines.append(
-            f"{step}. Run it: `python -m pytest {out_file} -v`. If it fails because of the script (wrong locator, "
+            f"{step}. Run it: `{pytest_command(out_file)}`. If it fails because of the script (wrong locator, "
             "timing), fix the script and run again - at most 3 runs in total. If it fails because the site really "
             "behaves differently from the expected result, keep the assertion as written and report it as a possible defect."
         )
@@ -127,6 +144,9 @@ def build_prompt(url, test_case, out_file, pom, verify):
 
 def claude_command():
     """CLAUDE_BIN 을 실행 가능한 명령 리스트로 만든다. (Windows 의 claude.cmd 도 찾아줌)"""
+    if USE_WSL:
+        # 로그인 셸(-l)로 실행해야 ~/.local/bin 등 평소 PATH 에서 claude 를 찾는다
+        return ["wsl", "-e", "bash", "-lc", 'exec claude "$@"', "claude"]
     parts = shlex.split(CLAUDE_BIN, posix=os.name != "nt")
     found = shutil.which(parts[0])
     if not found and os.name == "nt" and parts[0] == "claude":
@@ -307,7 +327,7 @@ class Handler(BaseHTTPRequestHandler):
     def run_pytest(self, run_id, out_file, headed):
         """AI 의 요약을 믿지 않고, 서버가 직접 pytest 를 돌려 결과를 확인한다."""
         report = f"{run_id}.report.html"
-        cmd = [PYTHON_BIN, "-m", "pytest", out_file, "-v", "--tb=short", "-p", "no:cacheprovider"]
+        cmd = [PYTHON_BIN, "-m", "pytest", out_file, "-v", "--tb=short", "--color=no", "-p", "no:cacheprovider"]
         if headed:  # 시연용: 브라우저 창을 띄우고 천천히 실행
             cmd += ["--headed", "--slowmo", "500"]
         if ENV["pytestHtml"]:
@@ -321,7 +341,7 @@ class Handler(BaseHTTPRequestHandler):
         counts = {"passed": 0, "failed": 0, "error": 0}
         try:
             for line in proc.stdout:
-                line = line.rstrip("\r\n")
+                line = ANSI_COLOR.sub("", line.rstrip("\r\n"))
                 self.sse("run-line", {"text": line})
                 # 마지막 요약 줄 예: "==== 2 passed, 1 failed in 3.21s ===="
                 if re.match(r"^=+ .* in [\d.]+s", line):
@@ -339,6 +359,7 @@ class Handler(BaseHTTPRequestHandler):
 def main():
     GENERATED_DIR.mkdir(exist_ok=True)
     print(f"test-auto-generator on http://localhost:{PORT}")
+    print(f"  claude: {'WSL' if USE_WSL else 'Windows'} -> {' '.join(claude_command())}")
     if not ENV["pytest"]:
         print('  (pytest-playwright 미설치: "실행 검증"은 건너뜁니다 -> pip install -r requirements.txt)')
     ThreadingHTTPServer(("", PORT), Handler).serve_forever()

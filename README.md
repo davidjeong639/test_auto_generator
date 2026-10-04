@@ -56,6 +56,14 @@ python app.py
 
 브라우저에서 http://localhost:3000 을 엽니다. 서버 자체는 표준 라이브러리만 써서 설치할 것이 없습니다.
 
+**WSL(리눅스)에서 Claude Code에 로그인해 쓰는 경우**에는 `--wsl`을 붙입니다. Windows와 WSL의 `claude`는 로그인이 따로라서, 붙이지 않으면 "Not logged in"이 뜹니다.
+
+```bash
+python app.py --wsl
+```
+
+이 모드에서는 WSL의 `claude`가 스크립트를 쓰고, 테스트는 Windows 쪽 같은 python(venv)으로 돌려서 서버 검증과 결과가 일치합니다.
+
 ④ "서버 실행 결과"(pytest로 직접 검증)까지 보려면 다음을 설치합니다.
 
 ```bash
@@ -78,6 +86,7 @@ python -m pytest generated/test_xxxx.py -v --headed
 |---|---|---|
 | `PORT` | `3000` | 서버 포트 |
 | `CLAUDE_BIN` | `claude` | claude 실행 파일 경로 |
+| `CLAUDE_WSL` | (없음) | `1`이면 `--wsl`과 같음 |
 | `PYTHON_BIN` | app.py를 실행한 python | pytest를 돌릴 python |
 | `CLAUDE_ALLOWED_TOOLS` | `WebFetch Read Write Edit Bash` | `claude -p`에 허용할 도구 (공백 구분) |
 
