@@ -1,0 +1,56 @@
+[
+  {
+    "id": "TC-01",
+    "title": "로그인 성공",
+    "tag": "기초 · 강의 05",
+    "case": "TC-01 로그인 성공\n1. standard_user / secret_sauce 로 로그인한다\n기대 결과: 상품 목록 페이지(Products)가 보인다"
+  },
+  {
+    "id": "TC-02",
+    "title": "비밀번호 오류",
+    "tag": "기초 · 강의 06",
+    "case": "TC-02 비밀번호 오류\n1. standard_user / wrong_pw 로 로그인한다\n기대 결과: \"do not match\" 에러 메시지가 보인다"
+  },
+  {
+    "id": "TC-03",
+    "title": "아이디 미입력",
+    "tag": "기초",
+    "case": "TC-03 아이디 미입력\n1. 아이디는 비우고 비밀번호만 secret_sauce 입력 후 Login 클릭\n기대 결과: \"Username is required\" 에러 메시지가 보인다"
+  },
+  {
+    "id": "TC-04",
+    "title": "잠긴 계정",
+    "tag": "기초",
+    "case": "TC-04 잠긴 계정\n1. locked_out_user / secret_sauce 로 로그인한다\n기대 결과: \"locked out\" 에러 메시지가 보인다"
+  },
+  {
+    "id": "TC-05",
+    "title": "장바구니 담기",
+    "tag": "중급 · 강의 05",
+    "case": "TC-05 장바구니 담기\n1. standard_user 로 로그인한다\n2. Sauce Labs Backpack 을 장바구니에 담는다\n기대 결과: 장바구니 배지 숫자가 1 이다"
+  },
+  {
+    "id": "TC-06",
+    "title": "장바구니에서 빼기",
+    "tag": "중급 · 강의 08",
+    "case": "TC-06 장바구니에서 빼기\n1. standard_user 로 로그인하고 Sauce Labs Backpack 을 담는다\n2. 같은 상품의 Remove 버튼을 누른다\n기대 결과: 장바구니 배지가 사라진다"
+  },
+  {
+    "id": "TC-07",
+    "title": "가격 낮은 순 정렬",
+    "tag": "중급",
+    "case": "TC-07 가격 낮은 순 정렬\n1. standard_user 로 로그인한다\n2. 정렬을 Price (low to high) 로 바꾼다\n기대 결과: 첫 번째 상품 가격이 $7.99 이다"
+  },
+  {
+    "id": "TC-08",
+    "title": "로그아웃",
+    "tag": "중급 · 과제",
+    "case": "TC-08 로그아웃\n1. standard_user 로 로그인한다\n2. 메뉴(☰)를 열고 Logout 을 누른다\n기대 결과: 로그인 페이지로 돌아온다"
+  },
+  {
+    "id": "TC-09",
+    "title": "주문 완료 E2E",
+    "tag": "심화",
+    "case": "TC-09 주문 완료\n1. standard_user 로 로그인하고 Sauce Labs Backpack 을 담는다\n2. 장바구니 → Checkout → 이름/성/우편번호 입력 → Continue → Finish\n기대 결과: \"Thank you for your order!\" 문구가 보인다"
+  }
+]

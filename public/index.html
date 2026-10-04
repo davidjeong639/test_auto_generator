@@ -55,7 +55,17 @@
   label:first-child { margin-top:0; }
   input[type=text], select, textarea { width:100%; padding:9px 11px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--fg); font:inherit; }
   textarea { min-height:190px; resize:vertical; font-size:13px; line-height:1.6; }
-  .opts { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .opts { display:grid; grid-template-columns:repeat(auto-fit, minmax(150px, 1fr)); gap:10px; }
+
+  /* Example test case list */
+  .cases { display:grid; grid-template-columns:repeat(auto-fill, minmax(200px, 1fr)); gap:10px; }
+  .case { text-align:left; display:flex; flex-direction:column; gap:4px; padding:12px; border-radius:10px; background:var(--bg); }
+  .case:hover { border-color:var(--green); }
+  .case.on { border-color:var(--green); background:var(--soft); box-shadow:0 0 0 2px color-mix(in srgb, var(--green) 25%, transparent); }
+  .case .id { font:600 11px/1 var(--mono); color:var(--muted); }
+  .case .tt { font-weight:700; }
+  .case .tg { font-size:11px; color:var(--green-d); }
+  .case .pv { font-size:12px; color:var(--muted); line-height:1.45; }
   .check { display:flex; gap:8px; align-items:flex-start; font-weight:400; font-size:13px; margin:0; padding:10px; border:1px solid var(--line); border-radius:8px; cursor:pointer; }
   .check input { margin-top:3px; accent-color:var(--green); }
   .check small { display:block; color:var(--muted); }
@@ -95,17 +105,22 @@
 </head>
 <body>
 <main>
-  <div class="eyebrow">강의 그 다음 · 실무 심화 데모</div>
+  <div class="eyebrow">오늘 강의의 목적지 · 먼저 보고 시작합니다</div>
   <h1>테스트 케이스만 쓰면, 자동화 스크립트는 AI가</h1>
-  <p class="sub">강의에서는 <code>page.fill()</code> · <code>assert</code>를 한 줄씩 직접 쳤습니다. 현업에서는 같은 원리 위에서 <b>사람은 "무엇을 검증할지"를 설계</b>하고, Claude Code가 사이트를 분석해 스크립트를 쓰고 <b>직접 돌려 검증</b>까지 합니다.</p>
+  <p class="sub">현업에서는 이미 이렇게 합니다. <b>사람은 "무엇을 검증할지"를 테스트 케이스로 설계</b>하고, Claude Code가 사이트를 분석해 스크립트를 쓰고 <b>직접 돌려 검증</b>까지 합니다. 지금은 코드가 낯설어도 괜찮아요 — <b>오늘 강의가 끝나면 이 화면의 코드를 직접 읽고, 맞는지 판단할 수 있게 됩니다.</b></p>
 
   <div class="pipe" id="pipe">
-    <div class="stage" data-stage="case"><div class="n">STEP 1</div><div class="t">테스트 케이스 작성</div><div class="who">👤 사람 (QA)</div><span class="lec">강의 06 · 무엇을 assert?</span></div>
-    <div class="stage" data-stage="inspect"><div class="n">STEP 2</div><div class="t">사이트 분석</div><div class="who">🤖 AI · F12 대신</div><span class="lec">강의 02 · HTML &amp; DOM</span></div>
-    <div class="stage" data-stage="write"><div class="n">STEP 3</div><div class="t">스크립트 작성</div><div class="who">🤖 AI · Locator 선택</div><span class="lec">강의 08 · Locator</span></div>
-    <div class="stage" data-stage="run"><div class="n">STEP 4</div><div class="t">실행 · 자가 수정</div><div class="who">🤖 AI + pytest</div><span class="lec">강의 06 · pytest</span></div>
-    <div class="stage" data-stage="report"><div class="n">STEP 5</div><div class="t">결과 리뷰</div><div class="who">👤 사람 (QA)</div><span class="lec">강의 09 · 실무 리뷰</span></div>
+    <div class="stage" data-stage="case"><div class="n">STEP 1</div><div class="t">테스트 케이스 작성</div><div class="who">👤 사람 (QA)</div><span class="lec">배울 곳 06 · 무엇을 assert?</span></div>
+    <div class="stage" data-stage="inspect"><div class="n">STEP 2</div><div class="t">사이트 분석</div><div class="who">🤖 AI · F12 대신</div><span class="lec">배울 곳 02 · HTML &amp; DOM</span></div>
+    <div class="stage" data-stage="write"><div class="n">STEP 3</div><div class="t">스크립트 작성</div><div class="who">🤖 AI · Locator 선택</div><span class="lec">배울 곳 08 · Locator</span></div>
+    <div class="stage" data-stage="run"><div class="n">STEP 4</div><div class="t">실행 · 자가 수정</div><div class="who">🤖 AI + pytest</div><span class="lec">배울 곳 06 · pytest</span></div>
+    <div class="stage" data-stage="report"><div class="n">STEP 5</div><div class="t">결과 리뷰</div><div class="who">👤 사람 (QA)</div><span class="lec">배울 곳 09 · 실무 리뷰</span></div>
   </div>
+
+  <section class="card" style="margin-bottom:16px">
+    <div class="head"><h2>예시 테스트 케이스</h2><span class="meta">클릭하면 아래 ①에 채워집니다 · 목록은 test_cases.json 에서 수정</span></div>
+    <div class="cases" id="cases"><span class="meta">불러오는 중…</span></div>
+  </section>
 
   <div class="grid">
     <section class="card">
@@ -113,17 +128,15 @@
       <label for="url">대상 사이트</label>
       <input type="text" id="url" value="https://www.saucedemo.com">
 
-      <label for="sample">샘플 (강의 실습 · 과제 시나리오)</label>
-      <select id="sample"></select>
-
       <label for="tc">테스트 케이스 — 단계와 기대 결과</label>
       <textarea id="tc" spellcheck="false"></textarea>
 
-      <label for="model">모델 <span class="meta">(비우면 내 Claude Code 기본값)</span></label>
-      <input type="text" id="model" placeholder="예: sonnet">
+      <label for="model">모델</label>
+      <select id="model"><option value="">기본값 (내 Claude Code 설정)</option></select>
       <div class="opts" style="margin-top:12px">
         <label class="check"><input type="checkbox" id="pom"><span>POM 구조로 작성<small>강의 09 · Page Object Model</small></span></label>
         <label class="check"><input type="checkbox" id="verify" checked><span>실행해서 검증<small>실패하면 AI가 고친 뒤 재실행</small></span></label>
+        <label class="check"><input type="checkbox" id="headed"><span>브라우저 띄워서 실행<small>시연용 · ④에서 천천히 동작</small></span></label>
       </div>
       <div class="warn" id="envWarn" hidden></div>
 
@@ -132,7 +145,7 @@
 
     <section class="card">
       <div class="head"><h2>② AI 작업 로그</h2><span class="meta" id="meta"></span></div>
-      <div id="log"><span class="meta">대기 중 — 왼쪽에서 케이스를 고르고 실행하세요. Claude가 어떤 페이지를 열고, 어떤 파일을 쓰고, 어떤 명령을 실행하는지 실시간으로 보입니다.</span></div>
+      <div id="log"><span class="meta">대기 중 — 위에서 예시 케이스를 고르고 실행하세요. Claude가 어떤 페이지를 열고, 어떤 파일을 쓰고, 어떤 명령을 실행하는지 실시간으로 보입니다.</span></div>
     </section>
   </div>
 
@@ -154,12 +167,12 @@
 
   <div class="compare">
     <section class="card">
-      <h3>✍️ 강의 · 손으로 직접</h3>
+      <h3>✍️ 오늘 강의 · 손으로 직접</h3>
       <ul>
         <li><b>F12</b>로 id · class 단서 찾기</li>
         <li><code>page.fill("#user-name", …)</code> 한 줄씩</li>
         <li><code>print</code> → <code>assert</code>로 판정</li>
-        <li>기초를 몸으로 익히는 단계</li>
+        <li>이 데모를 이해하기 위한 토대</li>
       </ul>
     </section>
     <section class="card">
@@ -182,54 +195,11 @@
     </section>
   </div>
   <section class="card human" style="margin-top:12px">
-    <b>🧰 도구는 거들 뿐.</b> <span class="meta">AI가 코드를 써 줘도 <b>"무엇을 검증할지"</b>는 사람이 설계합니다. 위 결과를 읽고 맞는지 판단하려면 강의에서 배운 요소 · Locator · assert 기초가 그대로 필요합니다.</span>
+    <b>🧰 도구는 거들 뿐.</b> <span class="meta">AI가 코드를 써 줘도 <b>"무엇을 검증할지"</b>는 사람이 설계합니다. AI가 쓴 결과가 맞는지 판단하려면 요소 · Locator · assert 기초가 꼭 필요합니다. <b>그걸 지금부터 하나씩 배워봅니다.</b></span>
   </section>
 </main>
 
 <script>
-const SAMPLES = {
-  'TC-01 로그인 성공 (강의 05)': `TC-01 로그인 성공
-1. 로그인 페이지에 접속한다
-2. 아이디 standard_user, 비밀번호 secret_sauce 를 입력한다
-3. Login 버튼을 누른다
-기대 결과:
-- URL 에 inventory 가 포함된다
-- 상품 목록이 6개 보인다`,
-  'TC-02 잘못된 비밀번호 (강의 06)': `TC-02 잘못된 비밀번호로 로그인 실패
-1. 로그인 페이지에 접속한다
-2. 아이디 standard_user, 비밀번호 wrong_pw 를 입력하고 Login 을 누른다
-기대 결과:
-- 로그인되지 않고 로그인 페이지에 머문다
-- "Username and password do not match" 가 포함된 에러 메시지가 보인다`,
-  'TC-03 잠긴 계정': `TC-03 잠긴 계정 로그인 차단
-1. 로그인 페이지에 접속한다
-2. 아이디 locked_out_user, 비밀번호 secret_sauce 로 로그인한다
-기대 결과:
-- "locked out" 이 포함된 에러 메시지가 보인다`,
-  'TC-04 상품 2개 담기 (과제 ①)': `TC-04 상품 2개 장바구니 담기
-1. standard_user / secret_sauce 로 로그인한다
-2. "Sauce Labs Backpack" 과 "Sauce Labs Bike Light" 를 장바구니에 담는다
-3. 장바구니 아이콘을 눌러 장바구니로 이동한다
-기대 결과:
-- 장바구니 배지 숫자가 2 이다
-- 장바구니에 두 상품 이름이 모두 보인다`,
-  'TC-05 로그아웃 (과제 ①)': `TC-05 로그아웃
-1. standard_user / secret_sauce 로 로그인한다
-2. 왼쪽 위 메뉴(☰)를 열고 Logout 을 누른다
-기대 결과:
-- 로그인 페이지로 돌아온다 (Login 버튼이 보인다)`,
-  'TC-06 주문 완료 (E2E)': `TC-06 주문 완료까지 E2E
-1. standard_user / secret_sauce 로 로그인한다
-2. "Sauce Labs Backpack" 을 담고 장바구니로 이동한다
-3. Checkout → 이름 Jinsu, 성 Jeong, 우편번호 12345 입력 → Continue
-4. 결제 요약 화면에서 Finish 를 누른다
-기대 결과:
-- 요약 화면의 상품명이 "Sauce Labs Backpack" 이다
-- "Thank you for your order!" 문구가 보인다
-- 장바구니 배지가 사라진다`,
-  '✏️ 직접 작성': ``,
-};
-
 // Lecture concepts we can spot in the generated code -> which lecture section they come from.
 const CONCEPTS = [
   [/\bassert\b|expect\(/, '06', 'assert / expect 검증'],
@@ -246,20 +216,38 @@ const CONCEPTS = [
 ];
 
 const $ = (id) => document.getElementById(id);
-const sample = $('sample');
-for (const k of Object.keys(SAMPLES)) sample.add(new Option(k, k));
-sample.onchange = () => { $('tc').value = SAMPLES[sample.value]; if (!SAMPLES[sample.value]) $('tc').focus(); };
-sample.onchange();
+
+// ---- example cases + models come from the server (test_cases.json / MODELS in app.py) ----
+function renderCases(examples) {
+  const list = [...examples, { id: 'NEW', title: '직접 작성', tag: '자유', case: '' }];
+  $('cases').innerHTML = list.map((c, i) => `
+    <button class="case" data-i="${i}">
+      <span class="id">${esc(c.id)}</span><span class="tt">${esc(c.title)}</span><span class="tg">${esc(c.tag || '')}</span>
+      <span class="pv">${esc(c.case.split('\n').slice(1).join(' · ') || '나만의 테스트 케이스를 적어보세요')}</span>
+    </button>`).join('');
+  const pick = (btn) => {
+    document.querySelectorAll('.case.on').forEach((el) => el.classList.remove('on'));
+    btn.classList.add('on');
+    $('tc').value = list[btn.dataset.i].case;
+    if (!$('tc').value) $('tc').focus();
+  };
+  $('cases').querySelectorAll('.case').forEach((btn) => { btn.onclick = () => pick(btn); });
+  pick($('cases').querySelector('.case'));
+}
 
 let env = { pytest: true };
-fetch('/api/env').then((r) => r.json()).then((e) => { env = e; updateEnvWarn(); }).catch(() => {});
+fetch('/api/config').then((r) => r.json()).then((cfg) => {
+  env = cfg.env; updateEnvWarn();
+  $('model').innerHTML = cfg.models.map((m) => `<option value="${esc(m.id)}">${esc(m.label)}</option>`).join('');
+  renderCases(cfg.examples);
+}).catch((e) => { $('cases').textContent = `예시를 불러오지 못했습니다: ${e.message}`; });
 function updateEnvWarn() {
   const w = $('envWarn');
   if (!$('verify').checked) { w.hidden = true; return; }
   w.textContent = 'pytest-playwright가 설치되지 않아 ④ 서버 실행은 건너뜁니다 — pip install -r requirements.txt';
   w.hidden = env.pytest;
 }
-$('verify').onchange = updateEnvWarn;
+$('verify').onchange = () => { updateEnvWarn(); $('headed').disabled = !$('verify').checked; };
 
 // ---- pipeline stepper ----
 const stages = [...document.querySelectorAll('.stage')];
@@ -289,7 +277,7 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&':'&amp;', '<':'&lt;
 const TOOL_KO = { WebFetch: '페이지 열기', Read: '파일 읽기', Write: '파일 쓰기', Edit: '파일 수정', Bash: '명령 실행' };
 
 function showBadges(script) {
-  $('badges').innerHTML = '<span class="meta" style="width:100%">강의에서 배운 개념이 이렇게 쓰였어요</span>' +
+  $('badges').innerHTML = '<span class="meta" style="width:100%">이 코드 속 개념, 오늘 이 섹션에서 배웁니다</span>' +
     CONCEPTS.filter(([re]) => re.test(script)).map(([, sec, label]) => `<span class="badge"><b>${sec}</b>${esc(label)}</span>`).join('');
 }
 
@@ -346,7 +334,7 @@ $('go').onclick = async () => {
       method: 'POST', signal: ctrl.signal, headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         url: $('url').value, testCase: $('tc').value, model: $('model').value,
-        pom: $('pom').checked, verify: $('verify').checked,
+        pom: $('pom').checked, verify: $('verify').checked, headed: $('headed').checked,
       }),
     });
     if (!res.ok) throw new Error(await res.text());

@@ -31,6 +31,16 @@ ALLOWED_TOOLS = os.environ.get("CLAUDE_ALLOWED_TOOLS", "WebFetch Read Write Edit
 ROOT = Path(__file__).resolve().parent
 GENERATED_DIR = ROOT / "generated"
 PUBLIC_DIR = ROOT / "public"
+TEST_CASES_FILE = ROOT / "test_cases.json"  # 화면의 예시 케이스 목록 (자유롭게 추가/수정)
+
+# 화면에서 고를 수 있는 모델. id 는 `claude --model` 에 그대로 전달된다. ("" = 내 Claude Code 기본값)
+MODELS = [
+    {"id": "", "label": "기본값 (내 Claude Code 설정)"},
+    {"id": "claude-sonnet-5-5", "label": "Sonnet 5.5 · 속도와 품질 균형 (추천)"},
+    {"id": "claude-opus-5-5", "label": "Opus 5.5 · 가장 꼼꼼함, 느림"},
+    {"id": "claude-haiku-4-5-20251001", "label": "Haiku 4.5 · 가장 빠르고 저렴"},
+    {"id": "claude-fable-5-1", "label": "Fable 5.1"},
+]
 
 MIME = {
     ".html": "text/html; charset=utf-8",
@@ -57,6 +67,15 @@ ENV = {
 # ---------------------------------------------------------------------------
 # Claude 에게 보낼 지시문 (실무 규칙 = 강의에서 배운 원칙)
 # ---------------------------------------------------------------------------
+def load_test_cases():
+    """test_cases.json 을 읽는다. 요청마다 읽으므로 파일을 고치고 새로고침하면 바로 반영된다."""
+    try:
+        return json.loads(TEST_CASES_FILE.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as e:
+        print(f"  test_cases.json 을 읽지 못했습니다: {e}")
+        return []
+
+
 def build_prompt(url, test_case, out_file, pom, verify):
     lines = [
         "You are a senior QA automation engineer. Turn the manual test case below into an automated test.",
@@ -137,8 +156,8 @@ class Handler(BaseHTTPRequestHandler):
     # ---- 라우팅 ----
     def do_GET(self):
         path = unquote(urlparse(self.path).path)
-        if path == "/api/env":
-            return self.send_json(ENV)
+        if path == "/api/config":
+            return self.send_json({"env": ENV, "models": MODELS, "examples": load_test_cases()})
         if path.startswith("/generated/"):
             return self.send_static(GENERATED_DIR, path[len("/generated/"):])
         return self.send_static(PUBLIC_DIR, "index.html" if path == "/" else path.lstrip("/"))
@@ -188,7 +207,7 @@ class Handler(BaseHTTPRequestHandler):
         url = str(data.get("url", "")).strip()
         test_case = str(data.get("testCase", "")).strip()
         model = str(data.get("model", "")).strip()
-        pom, verify = bool(data.get("pom")), bool(data.get("verify"))
+        pom, verify, headed = bool(data.get("pom")), bool(data.get("verify")), bool(data.get("headed"))
         if not re.match(r"^https?://", url) or not test_case:
             return self.send_error(400, "url and testCase required")
         if model and not re.fullmatch(r"[\w.\-\[\]]+", model):
@@ -213,7 +232,7 @@ class Handler(BaseHTTPRequestHandler):
             self.sse("script", {"file": f"generated/{out_file}" if script else None, "script": script})
 
             if script and verify and ENV["pytest"]:
-                self.run_pytest(run_id, out_file)
+                self.run_pytest(run_id, out_file, headed)
                 self.sse("done", {"verified": True})
             else:
                 self.sse("done", {"verified": False})
@@ -280,10 +299,12 @@ class Handler(BaseHTTPRequestHandler):
                 "turns": msg.get("num_turns"),
             })
 
-    def run_pytest(self, run_id, out_file):
+    def run_pytest(self, run_id, out_file, headed):
         """AI 의 요약을 믿지 않고, 서버가 직접 pytest 를 돌려 결과를 확인한다."""
         report = f"{run_id}.report.html"
         cmd = [PYTHON_BIN, "-m", "pytest", out_file, "-v", "--tb=short", "-p", "no:cacheprovider"]
+        if headed:  # 시연용: 브라우저 창을 띄우고 천천히 실행
+            cmd += ["--headed", "--slowmo", "500"]
         if ENV["pytestHtml"]:
             cmd += [f"--html={report}", "--self-contained-html"]
         self.sse("run-start", {"cmd": "python " + " ".join(cmd[1:])})
