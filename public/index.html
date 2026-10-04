@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Test Auto Generator</title>
+<style>
+  :root { --bg:#fff; --fg:#1a1a1a; --muted:#666; --card:#f6f7f9; --line:#dcdfe4; --accent:#d97757; --code:#111; --codefg:#e6e6e6; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#16171a; --fg:#ececec; --muted:#9a9a9a; --card:#202226; --line:#33363c; --code:#0c0d0f; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.5 system-ui, sans-serif; }
+  main { max-width:1100px; margin:0 auto; padding:24px 16px 48px; }
+  h1 { margin:0 0 4px; font-size:22px; }
+  .sub { color:var(--muted); margin:0 0 20px; }
+  .grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  @media (max-width:800px) { .grid { grid-template-columns:1fr; } }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; }
+  label { display:block; font-weight:600; margin:12px 0 4px; }
+  label:first-child { margin-top:0; }
+  input, select, textarea { width:100%; padding:8px 10px; border:1px solid var(--line); border-radius:6px; background:var(--bg); color:var(--fg); font:inherit; }
+  textarea { min-height:170px; resize:vertical; font-family:ui-monospace, monospace; font-size:13px; }
+  .row { display:flex; gap:8px; flex-wrap:wrap; margin-top:8px; }
+  button { border:1px solid var(--line); background:var(--bg); color:var(--fg); border-radius:6px; padding:7px 12px; cursor:pointer; font:inherit; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:#fff; font-weight:600; padding:9px 18px; }
+  button:disabled { opacity:.5; cursor:wait; }
+  #log { max-height:220px; overflow:auto; font-size:13px; }
+  .tool { color:var(--muted); font-family:ui-monospace, monospace; }
+  .tool b { color:var(--accent); }
+  .err { color:#d33; }
+  pre { margin:0; background:var(--code); color:var(--codefg); padding:14px; border-radius:8px; overflow:auto; font-size:12.5px; min-height:120px; }
+  .head { display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
+  .head h2 { margin:0; font-size:16px; }
+  .meta { color:var(--muted); font-size:12px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Test Auto Generator</h1>
+  <p class="sub">테스트 케이스를 적으면 Claude Code(<code>claude -p</code>)가 사이트를 직접 확인하고 자동화 스크립트를 만들어 줍니다.</p>
+
+  <div class="grid">
+    <section class="card">
+      <label for="url">대상 사이트</label>
+      <input id="url" value="https://www.saucedemo.com">
+
+      <label for="sample">샘플 케이스</label>
+      <select id="sample"></select>
+
+      <label for="tc">테스트 케이스</label>
+      <textarea id="tc"></textarea>
+
+      <label for="fw">프레임워크</label>
+      <select id="fw">
+        <option value="playwright-js">Playwright (JavaScript)</option>
+        <option value="playwright-python">Playwright (Python)</option>
+      </select>
+
+      <label for="model">모델 (비우면 내 Claude Code 기본값)</label>
+      <input id="model" placeholder="예: sonnet">
+
+      <div class="row"><button class="primary" id="go">스크립트 생성</button><button id="stop" disabled>중지</button></div>
+    </section>
+
+    <section class="card">
+      <div class="head"><h2>진행 상황</h2><span class="meta" id="meta"></span></div>
+      <div id="log"><span class="meta">대기 중</span></div>
+    </section>
+  </div>
+
+  <section class="card" style="margin-top:16px">
+    <div class="head"><h2>생성된 스크립트</h2><button id="copy" disabled>복사</button></div>
+    <pre id="out">// 여기에 결과가 표시됩니다</pre>
+    <div class="meta" id="path" style="margin-top:6px"></div>
+  </section>
+</main>
+
+<script>
+const SAMPLES = {
+  'TC-01 정상 로그인': `TC-01 정상 로그인
+1. 로그인 페이지에 접속한다
+2. 사용자명 standard_user, 비밀번호 secret_sauce 를 입력하고 Login 을 누른다
+기대 결과: /inventory.html 로 이동하고 상품 목록이 6개 보인다`,
+  'TC-02 잠긴 계정 로그인': `TC-02 잠긴 계정 로그인
+1. 로그인 페이지에 접속한다
+2. 사용자명 locked_out_user, 비밀번호 secret_sauce 로 로그인한다
+기대 결과: 로그인되지 않고 "locked out" 이 포함된 에러 메시지가 표시된다`,
+  'TC-03 장바구니 담기': `TC-03 장바구니 담기
+1. standard_user 로 로그인한다
+2. "Sauce Labs Backpack" 을 장바구니에 담는다
+3. 장바구니 아이콘을 눌러 장바구니로 이동한다
+기대 결과: 장바구니 배지가 1 이고, 장바구니 목록에 "Sauce Labs Backpack" 이 있다`,
+  'TC-04 주문 완료': `TC-04 주문 완료
+1. standard_user 로 로그인하고 상품 1개를 담는다
+2. 장바구니 > Checkout 에서 이름/성/우편번호를 입력하고 Continue, Finish 를 누른다
+기대 결과: "Thank you for your order" 문구가 표시된다`,
+};
+const $ = (id) => document.getElementById(id);
+const sample = $('sample');
+for (const k of Object.keys(SAMPLES)) sample.add(new Option(k, k));
+sample.onchange = () => { $('tc').value = SAMPLES[sample.value]; };
+sample.onchange();
+
+let ctrl, lastScript = '';
+const log = $('log');
+const add = (html) => { log.insertAdjacentHTML('beforeend', html); log.scrollTop = log.scrollHeight; };
+const esc = (s) => s.replace(/[&<>]/g, (c) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;' }[c]));
+
+function handle(event, d) {
+  if (event === 'text') add(`<div>${esc(d.text)}</div>`);
+  else if (event === 'tool') add(`<div class="tool"><b>${esc(d.name)}</b> ${esc(d.hint)}</div>`);
+  else if (event === 'stderr' || event === 'fatal') add(`<div class="err">${esc(d.text || d.error)}</div>`);
+  else if (event === 'result') $('meta').textContent = `${(d.ms/1000).toFixed(1)}s` + (d.cost != null ? ` · $${d.cost.toFixed(4)}` : '');
+  else if (event === 'done') {
+    if (d.script) { lastScript = d.script; $('out').textContent = d.script; $('path').textContent = `저장됨: ${d.file}`; $('copy').disabled = false; }
+    else add('<div class="err">스크립트 파일이 생성되지 않았습니다.</div>');
+  }
+}
+
+$('go').onclick = async () => {
+  ctrl = new AbortController();
+  log.innerHTML = ''; $('meta').textContent = ''; $('out').textContent = '생성 중…'; $('path').textContent = ''; $('copy').disabled = true;
+  $('go').disabled = true; $('stop').disabled = false;
+  try {
+    const res = await fetch('/api/generate', {
+      method: 'POST', signal: ctrl.signal, headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: $('url').value, testCase: $('tc').value, framework: $('fw').value, model: $('model').value }),
+    });
+    if (!res.ok) throw new Error(await res.text());
+    const reader = res.body.getReader(), dec = new TextDecoder();
+    let buf = '';
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      let i;
+      while ((i = buf.indexOf('\n\n')) >= 0) {
+        const chunk = buf.slice(0, i); buf = buf.slice(i + 2);
+        const ev = /^event: (.*)$/m.exec(chunk)?.[1], data = /^data: (.*)$/m.exec(chunk)?.[1];
+        if (ev && data) handle(ev, JSON.parse(data));
+      }
+    }
+  } catch (e) { if (e.name !== 'AbortError') add(`<div class="err">${esc(e.message)}</div>`); else add('<div class="meta">중지됨</div>'); }
+  $('go').disabled = false; $('stop').disabled = true;
+  if ($('out').textContent === '생성 중…') $('out').textContent = '// 결과 없음';
+};
+$('stop').onclick = () => ctrl?.abort();
+$('copy').onclick = () => navigator.clipboard.writeText(lastScript);
+</script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+{
+  "name": "test-auto-generator",
+  "version": "0.1.0",
+  "description": "Demo site: give it a test case, Claude Code (claude -p) inspects the target site and writes a UI automation script.",
+  "private": true,
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
