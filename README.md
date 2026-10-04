@@ -33,6 +33,37 @@
 예시 케이스는 [test_cases.json](test_cases.json)에서 추가·수정합니다. 저장하고 새로고침하면 바로 반영됩니다.
 모델 목록은 [app.py](app.py)의 `MODELS`에서 바꿉니다.
 
+## 하네스 (Claude에게 무엇을 어떻게 넘기나)
+
+`claude -p`에 넘기는 지시문과 도구는 모두 [harness/](harness/) 폴더에 있고, QA가 직접 읽고 고칠 수 있습니다.
+생성할 때 ② 로그에서 **실제로 보낸 지시문 전문과 실행 명령**을 펼쳐볼 수 있습니다.
+
+| 파일 | 역할 |
+|---|---|
+| [system_prompt.md](harness/system_prompt.md) | 역할, 작업 순서, Locator 우선순위, 검증 규칙, 금지사항, 자가 수정 규칙, 보고 형식 |
+| [task.md](harness/task.md) | 이번 작업: 사이트, 결과 파일, 옵션(POM/실행), 테스트 케이스, 사전 분석 결과 |
+| [inspect_page.py](harness/inspect_page.py) | 페이지 분석 도구 (F12 대신). 조작 가능한 요소와 추천 Locator를 출력하고, 반복 요소에는 "filter로 좁히기"를 표시 |
+
+생성 한 번의 흐름은 이렇습니다.
+
+1. **사전 분석:** 서버가 `inspect_page.py`로 첫 화면을 분석해 지시문에 넣습니다
+2. **지시문 전달:** `system_prompt.md` + `task.md`를 채워 stdin으로 `claude -p`에 넘깁니다 (`--max-turns 40`)
+3. **추가 분석 · 작성 · 실행:** Claude가 로그인 이후 화면 등을 분석 도구로 보고, 스크립트를 쓰고, 직접 실행해 고칩니다
+4. **하네스 점검:** 서버가 결과를 정적 검사합니다 (문법, test_ 함수, 검증 개수, sleep · XPath · nth 사용 여부)
+5. **독립 실행:** 서버가 pytest로 직접 돌려 PASS/FAIL과 HTML 리포트를 만듭니다
+
+분석 도구는 혼자서도 쓸 수 있습니다.
+
+```bash
+python harness/inspect_page.py https://www.saucedemo.com --do "fill:#user-name=standard_user" --do "fill:#password=secret_sauce" --do "click:#login-button"
+```
+
+## 만든 스크립트 다시 보기 · 다시 실행
+
+- 케이스 카드에 `📄 스크립트 2개 · PASS`처럼 상태가 표시됩니다. 카드를 누르면 ③에 그 케이스의 최신 스크립트가 열리고, 여러 번 만들었다면 버전을 고를 수 있습니다
+- **▶ 실행**은 저장된 스크립트를 Claude 없이 다시 돌립니다 (토큰 사용 없음). "브라우저 띄워서 실행"을 켜면 시연용으로 천천히 보여줍니다
+- 기록은 `generated/test_xxxx.json`에 남습니다 (케이스, 모델, 점검 결과, 마지막 실행 결과)
+
 ## 동작 방식
 
 ```
@@ -87,6 +118,7 @@ python -m pytest generated/test_xxxx.py -v --headed
 | `PORT` | `3000` | 서버 포트 |
 | `CLAUDE_BIN` | `claude` | claude 실행 파일 경로 |
 | `CLAUDE_WSL` | (없음) | `1`이면 `--wsl`과 같음 |
+| `CLAUDE_MAX_TURNS` | `40` | 생성 한 번에 Claude가 쓸 수 있는 최대 턴 |
 | `PYTHON_BIN` | app.py를 실행한 python | pytest를 돌릴 python |
 | `CLAUDE_ALLOWED_TOOLS` | `WebFetch Read Write Edit Bash` | `claude -p`에 허용할 도구 (공백 구분) |
 
