@@ -128,7 +128,12 @@ def build_prompt(url, test_case, out_file, pom, verify):
 def claude_command():
     """CLAUDE_BIN 을 실행 가능한 명령 리스트로 만든다. (Windows 의 claude.cmd 도 찾아줌)"""
     parts = shlex.split(CLAUDE_BIN, posix=os.name != "nt")
-    parts[0] = shutil.which(parts[0]) or parts[0]
+    found = shutil.which(parts[0])
+    if not found and os.name == "nt" and parts[0] == "claude":
+        # PATH 에 없을 때: npm 전역 설치 기본 위치
+        npm_claude = Path(os.environ.get("APPDATA", "")) / "npm" / "claude.cmd"
+        found = str(npm_claude) if npm_claude.exists() else None
+    parts[0] = found or parts[0]
     return parts
 
 

@@ -1,4 +1,4 @@
-# Needed only to run the generated Python tests (server-side "실행 검증").
+# Needed only to run the generated tests (server-side verification).
 pytest
 pytest-playwright
 pytest-html
