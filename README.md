@@ -25,9 +25,9 @@
 
 ## 시연 방법 (강의 오프닝)
 
-1. `python app.py`를 실행한 뒤 http://localhost:3000 을 엽니다
+1. `.venv\Scripts\python app.py --wsl`을 실행한 뒤 http://localhost:3000 을 엽니다 (WSL에서 로그인한 경우. Windows의 claude에 로그인했다면 `--wsl` 없이)
 2. **예시 테스트 케이스** 카드 중 하나를 클릭합니다. 처음에는 `TC-01 로그인 성공`, 그다음 `TC-05 장바구니 담기`를 추천합니다
-3. **모델**을 고르고(빠른 시연은 Sonnet 또는 Haiku), **브라우저 띄워서 실행**을 체크합니다
+3. **모델**을 고릅니다 (빠른 시연은 Sonnet 또는 Haiku). **브라우저 띄워서 실행**은 기본으로 켜져 있습니다
 4. **자동화 스크립트 만들기**를 누르면 AI 로그 → 스크립트 → 실제 브라우저 실행 → PASS 순서로 보여집니다
 
 예시 케이스는 [test_cases.json](test_cases.json)에서 추가·수정합니다. 저장하고 새로고침하면 바로 반영됩니다.
@@ -117,6 +117,7 @@ python -m pytest generated/test_xxxx.py -v --headed
 | 변수 | 기본값 | 설명 |
 |---|---|---|
 | `PORT` | `3000` | 서버 포트 |
+| `HOST` | `127.0.0.1` | 접속 허용 주소. 기본은 내 PC만. `0.0.0.0`으로 열면 같은 네트워크의 누구나 내 PC에서 명령을 실행시킬 수 있으니 주의 |
 | `CLAUDE_BIN` | `claude` | claude 실행 파일 경로 |
 | `CLAUDE_WSL` | (없음) | `1`이면 `--wsl`과 같음 |
 | `CLAUDE_MAX_TURNS` | `40` | 생성 한 번에 Claude가 쓸 수 있는 최대 턴 |

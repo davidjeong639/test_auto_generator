@@ -25,6 +25,8 @@ from urllib.parse import unquote, urlparse
 # 설정 (환경 변수로 바꿀 수 있음)
 # ---------------------------------------------------------------------------
 PORT = int(os.environ.get("PORT", 3000))
+# 기본은 내 PC 에서만 접속 가능. Claude 가 Bash 를 자동 실행하므로 강의장 와이파이 등에 열면 위험하다.
+HOST = os.environ.get("HOST", "127.0.0.1")
 CLAUDE_BIN = os.environ.get("CLAUDE_BIN", "claude")
 PYTHON_BIN = os.environ.get("PYTHON_BIN", sys.executable)  # 기본: 이 서버를 실행한 python
 ALLOWED_TOOLS = os.environ.get("CLAUDE_ALLOWED_TOOLS", "WebFetch Read Write Edit Bash").split()
@@ -388,7 +390,8 @@ class Handler(BaseHTTPRequestHandler):
 
         # stderr 는 따로 모아뒀다가 끝나면 보여준다
         stderr_lines = []
-        threading.Thread(target=lambda: stderr_lines.extend(proc.stderr), daemon=True).start()
+        stderr_reader = threading.Thread(target=lambda: stderr_lines.extend(proc.stderr), daemon=True)
+        stderr_reader.start()
 
         try:
             proc.stdin.write(prompt)  # 프롬프트는 stdin 으로 (여러 줄도 안전)
@@ -400,6 +403,7 @@ class Handler(BaseHTTPRequestHandler):
                     continue
                 self.forward(msg)
             proc.wait()
+            stderr_reader.join(timeout=5)  # 마지막 에러 메시지까지 다 읽고 보여준다
         except ClientGone:
             proc.kill()
             raise
@@ -421,6 +425,7 @@ class Handler(BaseHTTPRequestHandler):
                 "cost": msg.get("total_cost_usd"),
                 "ms": msg.get("duration_ms"),
                 "turns": msg.get("num_turns"),
+                "reason": msg.get("subtype"),  # success / error_max_turns / error_during_execution ...
             })
 
     def run_pytest(self, run_id, out_file, headed):
@@ -474,7 +479,7 @@ def main():
     # Windows 에서는 SO_REUSEADDR 때문에 같은 포트에 서버가 두 개 뜰 수 있다 -> 겹치면 바로 에러가 나게 한다
     ThreadingHTTPServer.allow_reuse_address = os.name != "nt"
     try:
-        server = ThreadingHTTPServer(("", PORT), Handler)
+        server = ThreadingHTTPServer((HOST, PORT), Handler)
     except OSError:
         sys.exit(f"포트 {PORT} 가 이미 사용 중입니다. 이미 켜 둔 서버를 끄거나 PORT=3001 처럼 다른 포트를 쓰세요.")
     server.serve_forever()

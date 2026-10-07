@@ -246,12 +246,13 @@ function renderCases(examples) {
       <span class="st" data-case="${esc(c.id)}"></span>
     </button>`).join('');
   const pick = (btn) => {
+    if (busy) return;  // 생성 · 실행 중에는 케이스를 바꾸지 않는다
     document.querySelectorAll('.case.on').forEach((el) => el.classList.remove('on'));
     btn.classList.add('on');
     currentCase = list[btn.dataset.i].id;
     $('tc').value = list[btn.dataset.i].case;
     if (!$('tc').value) $('tc').focus();
-    if (!busy) showCaseScripts(currentCase);
+    showCaseScripts(currentCase);
   };
   $('cases').querySelectorAll('.case').forEach((btn) => { btn.onclick = () => pick(btn); });
   pick($('cases').querySelector('.case'));
@@ -389,7 +390,12 @@ function handle(event, d) {
     add(`<div class="tool"><b>${esc(TOOL_KO[d.name] || d.name)}</b> ${esc(d.hint)}</div>`);
   }
   else if (event === 'stderr' || event === 'fatal') add(`<div class="err">${esc(d.text || d.error)}</div>`);
-  else if (event === 'result') $('meta').textContent = `${(d.ms / 1000).toFixed(1)}s` + (d.turns ? ` · ${d.turns}턴` : '') + (d.cost != null ? ` · API 환산 $${d.cost.toFixed(3)}` : '');
+  else if (event === 'result' && !d.ok) {
+    const why = d.reason === 'error_max_turns' ? '최대 턴 수에 도달했습니다 (CLAUDE_MAX_TURNS)' : '로그를 확인하세요. "Not logged in"이면 claude 로그인 또는 python app.py --wsl';
+    add(`<div class="err">Claude 작업이 실패로 끝났습니다 — ${esc(why)}</div>`);
+    handle('result-meta', d);
+  }
+  else if (event === 'result' || event === 'result-meta') $('meta').textContent = `${(d.ms / 1000).toFixed(1)}s` + (d.turns ? ` · ${d.turns}턴` : '') + (d.cost != null ? ` · API 환산 $${d.cost.toFixed(3)}` : '');
   else if (event === 'script') {
     if (d.script) {
       currentId = d.id; lastScript = d.script; $('out').textContent = d.script; $('path').textContent = `저장됨: ${d.file}`; $('copy').disabled = false;
