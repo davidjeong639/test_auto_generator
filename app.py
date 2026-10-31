@@ -10,7 +10,6 @@
 import json
 import os
 import re
-import secrets
 import shlex
 import shutil
 import subprocess
@@ -197,9 +196,26 @@ def tool_hint(tool_input):
 
 
 # ---------------------------------------------------------------------------
-# 생성된 스크립트 기록 (generated/test_xxxx.json)
+# 생성된 스크립트 기록 (generated/test_tc01_v1.json)
 #   어떤 케이스로 만들었는지, 마지막 실행 결과는 어땠는지 저장해 두고 화면에서 다시 보여준다.
 # ---------------------------------------------------------------------------
+RUN_ID = re.compile(r"[a-z0-9]+_v\d+|[0-9a-f]{8}")  # tc01_v2 (예전 기록은 8자리 난수)
+_reserved = set()  # 생성 중인 run_id (같은 케이스를 동시에 만들 때 번호가 겹치지 않게)
+_reserve_lock = threading.Lock()
+
+
+def next_run_id(case_id):
+    """케이스 번호 + 버전으로 이름을 짓는다. TC-01 -> tc01_v1, tc01_v2 ..."""
+    slug = re.sub(r"[^a-z0-9]", "", case_id.lower())[:20] or "new"
+    pattern = re.compile(rf"test_{slug}_v(\d+)\.(?:py|json)")
+    with _reserve_lock:
+        used = [int(m[1]) for p in GENERATED_DIR.iterdir() if (m := pattern.fullmatch(p.name))]
+        used += [int(r.rsplit("_v", 1)[1]) for r in _reserved if r.startswith(f"{slug}_v")]
+        run_id = f"{slug}_v{max(used, default=0) + 1}"
+        _reserved.add(run_id)
+    return run_id
+
+
 def meta_path(run_id):
     return GENERATED_DIR / f"test_{run_id}.json"
 
@@ -316,7 +332,7 @@ class Handler(BaseHTTPRequestHandler):
         if model and not re.fullmatch(r"[\w.\-\[\]]+", model):
             return self.send_error(400, "invalid model")
 
-        run_id = secrets.token_hex(4)
+        run_id = next_run_id(case_id)
         out_file = f"test_{run_id}.py"
 
         self.start_sse()
@@ -347,11 +363,14 @@ class Handler(BaseHTTPRequestHandler):
                 self.sse("done", {"verified": False})
         except ClientGone:
             pass
+        finally:
+            with _reserve_lock:
+                _reserved.discard(run_id)
 
     def rerun(self, data):
         """이미 만들어진 스크립트를 Claude 없이 다시 실행한다 (토큰 사용 없음)."""
         run_id = str(data.get("id", ""))
-        if not re.fullmatch(r"[0-9a-f]{8}", run_id) or not (GENERATED_DIR / f"test_{run_id}.py").is_file():
+        if not RUN_ID.fullmatch(run_id) or not (GENERATED_DIR / f"test_{run_id}.py").is_file():
             return self.send_error(404, "script not found")
         if not ENV["pytest"]:
             return self.send_error(400, "pytest-playwright not installed")

@@ -62,14 +62,14 @@ python harness/inspect_page.py https://www.saucedemo.com --do "fill:#user-name=s
 
 - 케이스 카드에 `📄 스크립트 2개 · PASS`처럼 상태가 표시됩니다. 카드를 누르면 ③에 그 케이스의 최신 스크립트가 열리고, 여러 번 만들었다면 버전을 고를 수 있습니다
 - **▶ 실행**은 저장된 스크립트를 Claude 없이 다시 돌립니다 (토큰 사용 없음). "브라우저 띄워서 실행"을 켜면 시연용으로 천천히 보여줍니다
-- 기록은 `generated/test_xxxx.json`에 남습니다 (케이스, 모델, 점검 결과, 마지막 실행 결과)
+- 기록은 `generated/test_tc01_v1.json`에 남습니다 (케이스, 모델, 점검 결과, 마지막 실행 결과)
 - 서버 실행은 매번 **영상**을 녹화하고, 실패하면 **그 순간의 스크린샷**도 남겨 ④에서 바로 보여줍니다 (현업의 "실패 증거 남기기"). "브라우저 띄워서 실행"은 기본으로 켜져 있습니다
 
 ## 동작 방식
 
 ```
 [브라우저 UI] --테스트 케이스--> [app.py] --실행--> claude -p (헤드리스)
-      ^                              |                    └─ generated/test_xxxx.py 작성
+      ^                              |                    └─ generated/test_tc01_v1.py 작성
       |                              └--실행--> python -m pytest  (서버의 독립 검증)
       +-------- SSE로 진행 상황 / 스크립트 / pytest 결과를 실시간 전송 --------+
 ```
@@ -109,7 +109,7 @@ playwright install chromium
 생성된 테스트를 따로 돌릴 수도 있습니다.
 
 ```bash
-python -m pytest generated/test_xxxx.py -v --headed
+python -m pytest generated/test_tc01_v1.py -v --headed
 ```
 
 ## 설정 (환경 변수)
